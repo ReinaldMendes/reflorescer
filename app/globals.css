@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-bg text-brand-800 font-sans antialiased;
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-brand-800;
+  }
+}
+
+@layer utilities {
+  .reveal {
+    @apply opacity-0;
+  }
+}

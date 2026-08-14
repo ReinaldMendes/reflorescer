@@ -1,0 +1,16 @@
+# Configuração de deploy do backend (Postgres) no Railway.
+# A Reflorescer usa Railway apenas para hospedar o banco PostgreSQL —
+# o app Next.js roda inteiramente na Vercel (frontend + API routes).
+#
+# Passos no Railway:
+# 1. Criar novo projeto -> "Provision PostgreSQL"
+# 2. Copiar a variável DATABASE_URL gerada
+# 3. Colar DATABASE_URL nas variáveis de ambiente do projeto na Vercel
+# 4. Rodar as migrations apontando para essa URL (ver README.md)
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "npx prisma migrate deploy"
+restartPolicyType = "ON_FAILURE"
