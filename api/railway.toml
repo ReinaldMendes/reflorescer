@@ -1,0 +1,14 @@
+# Deploy do backend Reflorescer (API Express + Prisma) no Railway.
+# Este serviço roda a API; o Postgres é um serviço IRMÃO no mesmo projeto
+# Railway (New -> Database -> PostgreSQL), com DATABASE_URL injetada
+# automaticamente entre os serviços do mesmo projeto.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm install && npm run build"
+
+[deploy]
+startCommand = "npx prisma migrate deploy && npm start"
+restartPolicyType = "ON_FAILURE"
+healthcheckPath = "/health"
+healthcheckTimeout = 30

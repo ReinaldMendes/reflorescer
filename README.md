@@ -1,139 +1,130 @@
-# Reflorescer Artesanal Natural — E-commerce
+# Reflorescer Artesanal Natural — Monorepo
 
-Site oficial da Reflorescer Artesanal Natural: e-commerce + landing page de marca, construído em Next.js 14 (App Router), TypeScript, TailwindCSS, Prisma e PostgreSQL.
+E-commerce + landing page de marca da Reflorescer Artesanal Natural, dividido em dois projetos independentes:
 
-Segue o mesmo padrão de arquitetura, stack e qualidade dos projetos Rose Monteiro e Flora Eça: **Vercel (frontend/API) + Railway (PostgreSQL)**.
+```
+reflorescer/
+├── web/     → Next.js 14 (App Router) — só apresentação, deploy na Vercel
+└── api/     → Express + Prisma + PostgreSQL — toda a lógica de negócio, deploy no Railway
+```
+
+Essa separação foi uma escolha deliberada: **`web/` nunca fala com o banco de dados diretamente.** Toda leitura e escrita passa pela API real (`api/`), via HTTP. Isso deixa a arquitetura mais clara do que uma aplicação Next.js monolítica misturando páginas, componentes e acesso a banco no mesmo lugar — e também abre caminho natural para reaproveitar a mesma API num futuro app mobile (item 44 do briefing original).
 
 ---
 
-## 1. Stack
+## 1. Como as duas partes se falam
 
-- Next.js 14 (App Router) + React 18 + TypeScript
-- TailwindCSS + Framer Motion
-- Prisma + PostgreSQL
-- NextAuth (autenticação do painel admin)
-- Zod (validação)
-- Cloudinary (imagens — a conectar)
-- Resend (e-mail transacional/newsletter — a conectar)
-- dnd-kit (drag-and-drop de imagens no admin)
-
-## 2. Estrutura do projeto
+### Leituras públicas (produtos, categorias, journal, etc.)
+`web/` faz `fetch()` direto para a API a partir de Server Components — sem autenticação, com cache/revalidação do Next (`next: { revalidate }`).
 
 ```
-app/
-  (site)/       → páginas públicas (Home, produtos, checkout, etc.)
-  (admin)/      → painel administrativo (protegido por middleware)
-  (auth)/       → login do admin (fora do layout protegido)
-  api/          → route handlers (carrinho, checkout, webhooks, admin)
-components/
-  ui/           → primitivos (Button, Input, Badge...)
-  site/         → componentes do site público
-  admin/        → componentes do painel administrativo
-lib/
-  services/     → regras de negócio (produto, categoria, carrinho, pedido...)
-  payments/     → adapter de gateway de pagamento (trocável sem reescrever checkout)
-  validations/  → schemas Zod
-prisma/
-  schema.prisma → modelagem completa do banco (33 entidades)
-  seed.ts       → dados iniciais (categorias, produto de exemplo, experiências)
+Server Component (web/) → fetch → API (Railway) → Prisma → PostgreSQL
 ```
 
-## 3. Rodando localmente
+### Carrinho, checkout, newsletter
+`web/` mantém rotas próprias em `app/api/*` que funcionam como **proxies finos**: recebem a requisição do navegador, cuidam do cookie de sessão do visitante (`reflorescer_session`), e repassam pra API real. A lógica de negócio (cálculo de total, criação de pedido, cupom) mora inteiramente na API.
+
+### Autenticação do painel administrativo (o ponto mais importante de entender)
+
+Como `web/` e `api/` normalmente ficam em **domínios diferentes** (ex.: `reflorescerartesanal.com.br` na Vercel e `reflorescer-api.up.railway.app` no Railway), não dá pra simplesmente usar um cookie httpOnly cross-domain. O fluxo adotado é o padrão **BFF (Backend-For-Frontend)**:
+
+1. Login do admin envia e-mail/senha para `web/app/api/session/login` (rota do próprio `web/`, não da API).
+2. Essa rota chama a API real (`POST /auth/login`) *server-to-server*, recebe um JWT de volta.
+3. A rota guarda esse JWT como cookie **httpOnly no domínio do `web/`** — o navegador nunca vê o token.
+4. Toda página administrativa (dashboard, produtos, pedidos...) roda como Server Component, lê esse cookie via `lib/admin-client.ts` e repassa como `Authorization: Bearer <token>` nas chamadas para a API.
+5. Ações de escrita feitas pelo navegador (ex.: criar produto no formulário) batem numa rota proxy em `web/app/api/admin/*`, que lê o mesmo cookie server-side e encaminha autenticado — o navegador nunca envia o token diretamente para a API.
+
+Resultado: zero necessidade de CORS com credenciais entre domínios, e o JWT nunca fica exposto a JavaScript no navegador.
+
+---
+
+## 2. Rodando localmente
+
+### 2.1 API
 
 ```bash
+cd api
 npm install
-cp .env.example .env.local   # preencha DATABASE_URL, NEXTAUTH_SECRET etc.
-npx prisma db push           # cria as tabelas no banco configurado
-npm run db:seed              # popula categorias, produto de exemplo, admin
-npm run dev
+cp .env.example .env          # preencha DATABASE_URL, JWT_SECRET, WEB_ORIGIN
+npx prisma db push            # cria as tabelas
+npm run db:seed               # popula o catálogo real (77 produtos)
+npm run dev                   # sobe em http://localhost:4000
 ```
 
-Login inicial do admin criado pelo seed: `admin@reflorescerartesanal.com.br` / `reflorescer2026` — **troque essa senha assim que possível** (ou crie um novo usuário e desative este).
+### 2.2 Web
+
+```bash
+cd web
+npm install
+cp .env.example .env.local    # API_URL=http://localhost:4000
+npm run dev                   # sobe em http://localhost:3000
+```
+
+Login inicial do admin (criado pelo seed): `admin@reflorescerartesanal.com.br` / `reflorescer2026` — troque essa senha assim que possível.
 
 ---
 
-## 4. Catálogo real da Reflorescer
+## 3. Deploy — passo a passo
 
-O `prisma/seed.ts` já vem populado com o catálogo real enviado pela proprietária em 14/08/2026: **77 produtos** organizados em **5 categorias-mãe → 13 subcategorias**, exatamente como ela nomeou (Sabonete Líquido, Sabonete em Barra, Tônico, Esfoliante, Hidratante, Sérum, Blend Roll-on, Blend Conta-gotas, Mix de Óleos Essenciais, Extrato Vegetal, Linha Imunidade, Incenso, Aromatizador de Ambiente, Vela, Mandala).
+### 3.1 Banco de dados (Railway)
 
-**Pontos de atenção antes do lançamento:**
+1. Crie um projeto no [railway.app](https://railway.app).
+2. **New → Database → PostgreSQL**.
+3. Copie a `DATABASE_URL` gerada (vai para o serviço da API no próximo passo).
 
-- **Preços são placeholders.** Como a lista enviada não incluía valores, cada subcategoria recebeu um preço médio de mercado só para o site não subir com R$ 0,00 — todos precisam ser ajustados em `/admin/produtos` com os preços reais.
-- **Nenhum produto tem foto ainda.** O card de produto já cai graciosamente no `placeholder-product.jpg` até a foto real ser enviada pelo painel (ver `public/images/LEIA-ME.md`).
-- **"Meu Guardião da Imunidade"** foi modelado como um produto único com duas variantes (250 ml e 30 ml spray), não como dois produtos — reflete como a proprietária descreveu o item.
-- **Nenhuma descrição inventa propriedade terapêutica.** As descrições geradas citam apenas linha + aroma informado (ex.: "Sérum artesanal Reflorescer — Anti-idade"), sem alegações de cura/tratamento — a proprietária deve enriquecer cada ficha com a composição e o modo de uso reais pelo painel.
-- **Experiências pré-vinculadas por palavra-chave** (ex.: produtos com "hidratante" no nome entram automaticamente em "Quero cuidar do corpo") — revisar e ajustar manualmente os vínculos que não fizerem sentido.
+### 3.2 API (Railway)
 
-Para popular o banco com esse catálogo:
-
-```bash
-npm run db:seed
-```
-
-## 5. Deploy — passo a passo
-
-### 5.1 Banco de dados (Railway)
-
-1. Crie uma conta em [railway.app](https://railway.app) e um novo projeto.
-2. Clique em **New → Database → PostgreSQL**.
-3. Depois de provisionado, abra a aba **Variables** e copie o valor de `DATABASE_URL`.
-4. Guarde essa URL — ela vai para as variáveis de ambiente da Vercel no próximo passo.
-
-> O app Next.js **não** roda no Railway neste projeto — o Railway hospeda só o Postgres. Todo o código (frontend + API routes + admin) roda na Vercel, que já lida nativamente com Next.js.
-
-### 5.2 Aplicar o schema no banco
-
-Localmente, com a `DATABASE_URL` do Railway no seu `.env`:
-
-```bash
-npx prisma migrate deploy   # ou npx prisma db push na primeira vez
-npm run db:seed
-```
-
-### 5.3 Frontend + API (Vercel)
-
-1. Suba este repositório para o GitHub (`git init && git add . && git commit -m "Reflorescer e-commerce" && git push`).
-2. Em [vercel.com](https://vercel.com), clique em **Add New → Project** e importe o repositório.
-3. A Vercel detecta o framework Next.js automaticamente (o `vercel.json` já define `buildCommand: prisma generate && next build`).
-4. Em **Environment Variables**, adicione (mesmos valores do `.env.example`):
+1. No mesmo projeto Railway, clique em **New → GitHub Repo** e selecione este repositório.
+2. Em **Settings → Root Directory**, defina `api`.
+3. Em **Variables**, adicione (valores conforme `api/.env.example`):
 
    | Variável | Valor |
    |---|---|
-   | `DATABASE_URL` | a URL copiada do Railway |
-   | `NEXTAUTH_URL` | a URL final do site na Vercel |
-   | `NEXTAUTH_SECRET` | gerar com `openssl rand -base64 32` |
-   | `CLOUDINARY_CLOUD_NAME` / `API_KEY` / `API_SECRET` | dados da sua conta Cloudinary |
+   | `DATABASE_URL` | referência ao Postgres do mesmo projeto (Railway injeta automaticamente se usar "Add Reference") |
+   | `JWT_SECRET` | gerar com `openssl rand -base64 32` |
+   | `WEB_ORIGIN` | domínio final do `web/` na Vercel |
+   | `CLOUDINARY_*` | credenciais da conta Cloudinary |
    | `RESEND_API_KEY` | chave da conta Resend |
-   | `MERCADOPAGO_ACCESS_TOKEN` | token de produção do Mercado Pago |
+   | `MERCADOPAGO_ACCESS_TOKEN` | token de produção |
+
+4. O `railway.toml` já define build (`npm install && npm run build`) e start (`prisma migrate deploy && npm start`) — o deploy aplica as migrations automaticamente.
+5. Depois do primeiro deploy, rode o seed uma vez (via Railway CLI ou um job manual): `npm run db:seed`.
+6. Anote a URL pública gerada pelo Railway (ex.: `https://reflorescer-api.up.railway.app`) — vai para a Vercel no próximo passo.
+
+### 3.3 Frontend (Vercel)
+
+1. Em [vercel.com](https://vercel.com), **Add New → Project**, selecione este repositório.
+2. Em **Root Directory**, defina `web`.
+3. Em **Environment Variables**:
+
+   | Variável | Valor |
+   |---|---|
+   | `API_URL` | URL da API no Railway |
+   | `NEXT_PUBLIC_API_URL` | mesma URL (usada em componentes client-side, se necessário) |
    | `NEXT_PUBLIC_SITE_URL` | domínio final do site |
    | `NEXT_PUBLIC_WHATSAPP_NUMBER` | número de contato |
 
-5. Clique em **Deploy**.
-6. Configure o domínio próprio em **Settings → Domains**.
+4. Deploy. Configure o domínio próprio em **Settings → Domains**.
+5. Volte no Railway e atualize `WEB_ORIGIN` com esse domínio final (necessário pro CORS).
 
-### 5.4 Webhook de pagamento
+### 3.4 Webhook de pagamento
 
-Depois do deploy, configure no painel do Mercado Pago (ou gateway escolhido) a URL de webhook:
-`https://seudominio.com.br/api/webhooks/payment`
+Configure no painel do Mercado Pago a URL: `https://sua-api.up.railway.app/webhooks/payment`
 
 ---
 
-## 6. O que já está funcional vs. pontos de conexão final
+## 4. Catálogo real
 
-**Funcional de ponta a ponta:**
-Home editorial, catálogo com filtros, página de produto, carrinho, checkout (3 etapas), criação de pedido, painel admin com dashboard/produtos/categorias/pedidos, autenticação do admin, sitemap/robots dinâmicos, JSON-LD de produto.
+O `api/prisma/seed.ts` já vem com os 77 produtos reais enviados pela proprietária (Sabonete Líquido, Sabonete em Barra, Tônico, Esfoliante, Hidratante, Sérum, Blend Roll-on, Blend Conta-gotas, Mix de Óleos Essenciais, Extrato Vegetal, Linha Imunidade, Incenso, Aromatizador de Ambiente, Vela, Mandala). Preços são placeholders por família — ajuste os valores reais em `/admin/produtos` antes do lançamento. Ver `web/public/images/LEIA-ME.md` para a lista de imagens que faltam.
 
-**Estrutura pronta, aguardando credenciais reais para ativar:**
-- **Cloudinary** — o uploader de imagens no admin já tem drag-and-drop funcional; falta conectar o endpoint de upload real (`/api/admin/upload`) usando as credenciais do `.env`.
-- **Gateway de pagamento** — a interface `PaymentProvider` (`lib/payments/`) já define o contrato; a implementação do Mercado Pago está com a chamada HTTP marcada como `TODO`, pronta para receber o token de produção.
-- **Resend** — endpoint de newsletter já salva no banco; falta conectar ao provedor de e-mail marketing.
-- **Instagram** — seção da Home aceita posts cadastrados manualmente no admin como fallback caso a API oficial do Instagram não esteja disponível (conforme item 19 do briefing).
+## 5. O que já está funcional vs. pontos de conexão final
 
-Esses pontos foram deixados como interface + TODO comentado propositalmente — são credenciais/contas que só a proprietária pode fornecer, e a arquitetura já está pronta para recebê-las sem refatoração.
+**Funcional de ponta a ponta:** Home editorial, catálogo com filtros, produto, carrinho, checkout, criação de pedido, painel admin (dashboard, produtos, categorias, pedidos), autenticação BFF, sitemap/robots dinâmicos.
 
-## 7. Próximos incrementos sugeridos
+**Estrutura pronta, aguardando credenciais reais:** upload de imagem via Cloudinary (endpoint a conectar), gateway de pagamento (interface `PaymentProvider` pronta em `api/src/payments/`, chamada HTTP do Mercado Pago marcada como `TODO`), sincronização de newsletter com Resend, feed real do Instagram.
 
-- CRUD completo de categorias, kits, cupons e journal no admin (hoje: leitura completa + criação de produto já funcional como referência de padrão a replicar nos demais CRUDs)
-- Página de edição de produto existente (reaproveita o `ProductForm` já criado)
-- Editor visual de `PageSection` para o conteúdo da Home
-- Testes automatizados (Playwright para fluxo de checkout)
+## 6. Próximos incrementos sugeridos
+
+- CRUD completo de kits, cupons e journal no admin (hoje: produtos e categorias já seguem o padrão a replicar)
+- Página de edição de produto existente
+- Testes automatizados (Playwright para o fluxo de checkout ponta a ponta, incluindo a chamada real à API)
