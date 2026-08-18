@@ -17,14 +17,14 @@ export function Header({ cartCount = 0 }: { cartCount?: number }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-brand-100 bg-bg/90 backdrop-blur-sm">
+    <header className="sticky top-0 z-50 border-b border-gold/20 bg-bg/70 backdrop-blur-glass">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-12">
         <button className="lg:hidden" onClick={() => setOpen(!open)} aria-label="Abrir menu">
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
 
-        <Link href="/" className="font-display text-2xl text-brand-800 tracking-tight">
-          Reflorescer
+        <Link href="/" className="font-display text-2xl font-light tracking-tight text-brand-800">
+          Reflorescer<span className="text-gold-deep">.</span>
         </Link>
 
         <nav className="hidden gap-8 lg:flex">
@@ -32,7 +32,7 @@ export function Header({ cartCount = 0 }: { cartCount?: number }) {
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm text-brand-500 transition-colors hover:text-brand-800"
+              className="text-sm tracking-wide text-brand-500 transition-colors hover:text-gold-deep"
             >
               {link.label}
             </Link>

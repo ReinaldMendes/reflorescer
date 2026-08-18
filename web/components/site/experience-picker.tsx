@@ -9,16 +9,20 @@ interface ExperienceItem {
   slug: string;
 }
 
-// "Qual experiência você deseja viver hoje?" — transforma o catálogo em
-// descoberta guiada por intenção, não apenas em navegação por categoria.
 export function ExperiencePicker({ experiences }: { experiences: ExperienceItem[] }) {
   return (
-    <section className="bg-bg-sand py-section-y lg:py-section-y-lg">
+    <section className="relative overflow-hidden py-section-y lg:py-section-y-lg">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[500px] w-[900px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-70 blur-3xl"
+        style={{ background: "radial-gradient(ellipse, rgba(124,143,115,0.14), transparent 65%)" }}
+      />
+
       <div className="mx-auto max-w-7xl px-6 lg:px-12">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm uppercase tracking-[0.2em] text-brand-500">Descubra</p>
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-gold-deep">Descubra</p>
           <h2 className="mt-4 font-display text-display-md text-brand-800">
-            Qual experiência você deseja viver hoje?
+            Qual travessia você deseja <em className="italic text-gold-deep">viver</em> hoje?
           </h2>
         </div>
 
@@ -33,7 +37,7 @@ export function ExperiencePicker({ experiences }: { experiences: ExperienceItem[
             >
               <Link
                 href={`/experiencias/${exp.slug}`}
-                className="inline-block rounded-full border border-brand-200 bg-bg px-6 py-3 text-brand-700 transition-colors duration-300 hover:border-brand-600 hover:bg-brand-600 hover:text-bg"
+                className="glass glass-hover inline-block rounded-full px-7 py-3.5 text-brand-700 transition-colors hover:border-gold-deep"
               >
                 {exp.title}
               </Link>

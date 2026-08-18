@@ -6,7 +6,7 @@ export function Badge({
   className,
 }: {
   children: React.ReactNode;
-  variant?: "brand" | "clay" | "sage";
+  variant?: "brand" | "clay" | "sage" | "gold";
   className?: string;
 }) {
   return (
@@ -16,6 +16,7 @@ export function Badge({
         variant === "brand" && "bg-brand-100 text-brand-800",
         variant === "clay" && "bg-clay/10 text-clay-dark",
         variant === "sage" && "bg-brand-50 text-brand-500",
+        variant === "gold" && "border border-gold/30 bg-white/70 text-gold-deep",
         className
       )}
     >

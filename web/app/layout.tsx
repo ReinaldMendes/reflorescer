@@ -3,6 +3,7 @@ import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/site/header";
 import { Footer } from "@/components/site/footer";
+import { AmbientOrbs } from "@/components/site/ambient-orbs";
 import { getSiteSettings } from "@/lib/api-client";
 
 const fraunces = Fraunces({
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className={`${fraunces.variable} ${inter.variable}`}>
       <body>
+        <AmbientOrbs />
         <Header />
         {children}
         <Footer />

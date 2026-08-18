@@ -9,15 +9,57 @@
 
   body {
     @apply bg-bg text-brand-800 font-sans antialiased;
+    position: relative;
+  }
+
+  /* Glow ambiente global — pérola com manchas suaves de dourado e sálvia.
+     Fixo (não rola com a página) para dar sensação de "atmosfera" contínua,
+     não de fundo repetido por seção. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 900px 600px at 15% 0%, rgba(201, 168, 118, 0.14), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 90% 20%, rgba(124, 143, 115, 0.12), transparent 55%),
+      radial-gradient(ellipse 800px 600px at 50% 100%, rgba(201, 168, 118, 0.09), transparent 60%);
   }
 
   ::selection {
-    @apply bg-brand-200 text-brand-800;
+    @apply bg-gold-pale text-brand-800;
   }
 }
 
-@layer utilities {
-  .reveal {
-    @apply opacity-0;
+@layer components {
+  /* Painel de vidro fosco — base reutilizada em cards, botões e inputs
+     "vidro" em todo o site. Definido como classe utilitária composta para
+     não repetir a mesma pilha de propriedades em cada componente. */
+  .glass {
+    @apply bg-white/40 backdrop-blur-glass border border-white/70 shadow-glass;
+  }
+
+  .glass-hover {
+    @apply transition-all duration-700 ease-organic hover:shadow-glass-hover hover:-translate-y-0.5;
+  }
+
+  /* Shimmer: uma faixa de luz que atravessa o painel periodicamente,
+     como reflexo se movendo sobre um cristal. Aplicado via ::before para
+     não interferir no conteúdo/z-index do card. */
+  .glass-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .glass-shimmer::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -20%;
+    width: 60%;
+    height: 200%;
+    background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.5) 50%, transparent 60%);
+    animation: shimmer 7s ease-in-out infinite;
+    pointer-events: none;
   }
 }
