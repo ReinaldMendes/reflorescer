@@ -4,12 +4,30 @@
 
 const API_URL = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-async function apiFetch<T>(path: string, revalidate = 3600): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { next: { revalidate } });
-  if (!res.ok) {
-    throw new Error(`Falha ao buscar ${path}: ${res.status}`);
+// `fallback` é o valor retornado se a API estiver fora do ar ou responder
+// erro — usado nas chamadas de LISTAGEM (Home, Kits, Journal), que não
+// devem derrubar o build/página inteira por uma falha pontual da API.
+// Chamadas de DETALHE (produto/categoria por slug) não recebem fallback:
+// elas devem continuar lançando erro para que a página dispare notFound()
+// corretamente em vez de renderizar uma página vazia como se existisse.
+async function apiFetch<T>(path: string, revalidate = 3600, fallback?: T): Promise<T> {
+  try {
+    const res = await fetch(`${API_URL}${path}`, { next: { revalidate } });
+    if (!res.ok) {
+      if (fallback !== undefined) {
+        console.warn(`[api-client] ${path} respondeu ${res.status} — usando fallback.`);
+        return fallback;
+      }
+      throw new Error(`Falha ao buscar ${path}: ${res.status}`);
+    }
+    return res.json();
+  } catch (err) {
+    if (fallback !== undefined) {
+      console.warn(`[api-client] erro ao buscar ${path} — usando fallback.`, err);
+      return fallback;
+    }
+    throw err;
   }
-  return res.json();
 }
 
 // Variante que não deve ser cacheada (dados de carrinho/checkout, por ex.)
@@ -40,12 +58,13 @@ export function listProducts(params: ProductListParams = {}) {
   if (params.destaque) query.set("destaque", "1");
   return apiFetch<{ items: any[]; total: number; page: number; perPage: number; totalPages: number }>(
     `/products?${query.toString()}`,
-    1800
+    1800,
+    { items: [], total: 0, page: 1, perPage: 12, totalPages: 0 }
   );
 }
 
 export function getFeaturedProducts(take = 8) {
-  return apiFetch<any[]>(`/products/featured?take=${take}`, 3600);
+  return apiFetch<any[]>(`/products/featured?take=${take}`, 3600, []);
 }
 
 export function getProductBySlug(slug: string) {
@@ -53,13 +72,13 @@ export function getProductBySlug(slug: string) {
 }
 
 export function getRelatedProducts(productId: string, categoryId: string) {
-  return apiFetch<any[]>(`/products/${productId}/related?categoryId=${categoryId}`, 1800);
+  return apiFetch<any[]>(`/products/${productId}/related?categoryId=${categoryId}`, 1800, []);
 }
 
 // --- Categorias ---
 export function listCategories(params: { destaque?: boolean } = {}) {
   const query = params.destaque ? "?destaque=1" : "";
-  return apiFetch<any[]>(`/categories${query}`, 3600);
+  return apiFetch<any[]>(`/categories${query}`, 3600, []);
 }
 
 export function getCategoryBySlug(slug: string) {
@@ -68,7 +87,7 @@ export function getCategoryBySlug(slug: string) {
 
 // --- Experiências ---
 export function listExperiences() {
-  return apiFetch<any[]>(`/experiences`, 3600);
+  return apiFetch<any[]>(`/experiences`, 3600, []);
 }
 
 export function getExperienceBySlug(slug: string) {
@@ -77,7 +96,7 @@ export function getExperienceBySlug(slug: string) {
 
 // --- Journal / Blog ---
 export function listBlogPosts(take?: number) {
-  return apiFetch<any[]>(`/blog-posts${take ? `?take=${take}` : ""}`, 3600);
+  return apiFetch<any[]>(`/blog-posts${take ? `?take=${take}` : ""}`, 3600, []);
 }
 
 export function getBlogPostBySlug(slug: string) {
@@ -86,7 +105,7 @@ export function getBlogPostBySlug(slug: string) {
 
 // --- Kits ---
 export function listKits() {
-  return apiFetch<any[]>(`/kits`, 3600);
+  return apiFetch<any[]>(`/kits`, 3600, []);
 }
 
 // --- Frete e configurações ---
@@ -99,7 +118,11 @@ export function getSiteSettings() {
 }
 
 export function getSitemapData() {
-  return apiFetch<{ products: any[]; categories: any[]; posts: any[] }>(`/sitemap-data`, 3600);
+  return apiFetch<{ products: any[]; categories: any[]; posts: any[] }>(`/sitemap-data`, 3600, {
+    products: [],
+    categories: [],
+    posts: [],
+  });
 }
 
 // --- Pedido (confirmação) ---
