@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { ForestFrame } from "@/components/site/forest-frame";
 
 // Hero "portal de luz" — a fotografia real (quando disponível) fica bem ao
 // fundo, em baixíssima opacidade e desfocada, só pra dar textura orgânica
@@ -26,6 +27,8 @@ export function Hero({
           <Image src={imageUrl} alt="" fill className="scale-110 object-cover" priority />
         </div>
       )}
+
+      <ForestFrame />
 
       {/* Portal: anéis concêntricos girando + círculo de luz respirando */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[540px] w-[540px] -translate-x-1/2 -translate-y-[52%] animate-spin-slow-reverse rounded-full border border-brand-300/25" />
