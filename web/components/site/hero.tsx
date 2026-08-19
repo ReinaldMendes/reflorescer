@@ -49,13 +49,13 @@ export function Hero({
           paleta pérola/dourada do site (em vez de deixar a foto crua) e
           garante legibilidade do texto, como olhar a floresta através de
           uma porta de vidro embaçado. */}
-      <div className="absolute inset-0 -z-20 backdrop-blur-[3px]" />
-      <div className="absolute inset-0 -z-20 bg-gradient-to-b from-bg/85 via-bg/30 to-bg/90" />
+      <div className="absolute inset-0 -z-20 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 -z-20 bg-gradient-to-b from-bg/70 via-bg/18 to-bg/80" />
       <div
         className="absolute inset-0 -z-20"
         style={{
           background:
-            "radial-gradient(ellipse 72% 62% at 50% 46%, transparent 0%, rgba(43,52,40,0.18) 100%)",
+            "radial-gradient(ellipse 72% 62% at 50% 46%, transparent 0%, rgba(43,52,40,0.12) 100%)",
         }}
       />
 
