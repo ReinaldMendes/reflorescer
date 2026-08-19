@@ -20,7 +20,7 @@ export default async function HomePage() {
 
   return (
     <main>
-      <Hero imageUrl="/images/hero-reflorescer.jpg" />
+      <Hero imageUrl="/images/hero-floresta.jpg" />
 
       <EditorialSection
         title="Há cuidados que ultrapassam a pele."

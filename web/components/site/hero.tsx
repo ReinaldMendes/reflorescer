@@ -4,15 +4,15 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { ForestFrame } from "@/components/site/forest-frame";
 
-// Hero "portal de luz" — a fotografia real (quando disponível) fica bem ao
-// fundo, em baixíssima opacidade e desfocada, só pra dar textura orgânica
-// atrás do vidro. O centro visual é o portal: um círculo que respira, dois
-// anéis girando em velocidades opostas e uma constelação bem sutil de
-// pontos — geometria abstrata, não símbolo religioso literal.
+// Hero "portal de luz" — a pessoa acessa a loja e vai literalmente entrando
+// na floresta: a fotografia real ocupa o fundo inteiro, com um lento
+// zoom-avanço (Ken Burns) simulando o movimento de caminhar mata adentro,
+// vista por trás de um véu de vidro fosco (a mesma linguagem "vidro etéreo"
+// usada no resto do site). O portal de luz — anéis girando + círculo que
+// respira — continua no centro, como a passagem que a pessoa atravessa.
 export function Hero({
-  imageUrl,
+  imageUrl = "/images/hero-floresta.jpg",
   title = "Reflorescer",
   subtitle = "Natureza, arte e cuidado transformados em experiências que atravessam os sentidos.",
 }: {
@@ -22,13 +22,42 @@ export function Hero({
 }) {
   return (
     <section className="relative flex min-h-[96vh] items-center justify-center overflow-hidden px-6 pb-16 pt-20 text-center">
-      {imageUrl && (
-        <div className="absolute inset-0 -z-10 opacity-[0.08] blur-3xl">
-          <Image src={imageUrl} alt="" fill className="scale-110 object-cover" priority />
-        </div>
-      )}
+      {/* Fundo: a floresta real, entrando em foco e avançando lentamente —
+          sensação de estar caminhando para dentro da mata. */}
+      <motion.div
+        className="absolute inset-0 -z-30"
+        initial={{ scale: 1.22, opacity: 0 }}
+        animate={{ scale: 1.06, opacity: 1 }}
+        transition={{ duration: 3.2, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <motion.div
+          className="absolute inset-0"
+          animate={{ scale: [1, 1.05, 1] }}
+          transition={{ duration: 30, repeat: Infinity, ease: "easeInOut", delay: 3.2 }}
+        >
+          <Image
+            src={imageUrl}
+            alt="Trilha entre árvores e um riacho na floresta Reflorescer"
+            fill
+            priority
+            className="object-cover"
+          />
+        </motion.div>
+      </motion.div>
 
-      <ForestFrame />
+      {/* Véu de vidro fosco sobre a fotografia — funde a mata real com a
+          paleta pérola/dourada do site (em vez de deixar a foto crua) e
+          garante legibilidade do texto, como olhar a floresta através de
+          uma porta de vidro embaçado. */}
+      <div className="absolute inset-0 -z-20 backdrop-blur-[3px]" />
+      <div className="absolute inset-0 -z-20 bg-gradient-to-b from-bg/85 via-bg/30 to-bg/90" />
+      <div
+        className="absolute inset-0 -z-20"
+        style={{
+          background:
+            "radial-gradient(ellipse 72% 62% at 50% 46%, transparent 0%, rgba(43,52,40,0.18) 100%)",
+        }}
+      />
 
       {/* Portal: anéis concêntricos girando + círculo de luz respirando */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[540px] w-[540px] -translate-x-1/2 -translate-y-[52%] animate-spin-slow-reverse rounded-full border border-brand-300/25" />

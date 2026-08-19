@@ -54,16 +54,30 @@ export function CustomCursor() {
 
       <motion.div
         aria-hidden="true"
-        className="pointer-events-none fixed left-0 top-0 z-[9999] rounded-full bg-brand-600"
-        style={{ x: cursorX, y: cursorY, translateX: "-50%", translateY: "-50%" }}
-        animate={{ width: isHovering ? 8 : 10, height: isHovering ? 8 : 10 }}
+        className="pointer-events-none fixed left-0 top-0 z-[9999] rounded-full"
+        style={{
+          x: cursorX,
+          y: cursorY,
+          translateX: "-50%",
+          translateY: "-50%",
+          background: "radial-gradient(circle at 32% 28%, #A9E0A6 0%, #5B9A5F 55%, #2B3428 100%)",
+          boxShadow: "0 0 14px 3px rgba(91,154,95,0.6), 0 0 3px rgba(255,255,255,0.8) inset",
+        }}
+        animate={{ width: isHovering ? 10 : 12, height: isHovering ? 10 : 12 }}
         transition={{ duration: 0.2 }}
       />
       <motion.div
         aria-hidden="true"
-        className="pointer-events-none fixed left-0 top-0 z-[9998] rounded-full border border-brand-400/60"
-        style={{ x: ringX, y: ringY, translateX: "-50%", translateY: "-50%" }}
-        animate={{ width: isHovering ? 52 : 32, height: isHovering ? 52 : 32, opacity: isHovering ? 0.8 : 0.5 }}
+        className="pointer-events-none fixed left-0 top-0 z-[9998] rounded-full border"
+        style={{
+          x: ringX,
+          y: ringY,
+          translateX: "-50%",
+          translateY: "-50%",
+          borderColor: "rgba(168,135,79,0.55)",
+          boxShadow: "0 0 10px rgba(168,135,79,0.18)",
+        }}
+        animate={{ width: isHovering ? 54 : 34, height: isHovering ? 54 : 34, opacity: isHovering ? 0.85 : 0.5 }}
         transition={{ duration: 0.3 }}
       />
     </>
