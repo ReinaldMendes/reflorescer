@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { Menu, X, Search, Heart, ShoppingBag, User } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,8 +24,15 @@ export function Header({ cartCount = 0 }: { cartCount?: number }) {
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
 
-        <Link href="/" className="font-display text-2xl font-light tracking-tight text-brand-800">
-          Reflorescer<span className="text-gold-deep">.</span>
+        <Link href="/" className="flex items-center" aria-label="Reflorescer — página inicial">
+          <Image
+            src="/images/logo-reflorescer.png"
+            alt="Reflorescer Artesanal Natural"
+            width={1238}
+            height={1149}
+            priority
+            className="h-12 w-auto lg:h-14"
+          />
         </Link>
 
         <nav className="hidden gap-8 lg:flex">

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/site/header";
@@ -27,6 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: title, template: `%s | Reflorescer Artesanal Natural` },
     description,
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://reflorescerartesanal.com.br"),
+    manifest: "/manifest.json",
     openGraph: {
       title,
       description,
@@ -37,6 +38,12 @@ export async function generateMetadata(): Promise<Metadata> {
     twitter: { card: "summary_large_image", title, description },
   };
 }
+
+// Cor da barra de status/tema quando instalado como app web (Android/iOS) —
+// combina com o verde "ink" da marca (brand-800).
+export const viewport: Viewport = {
+  themeColor: "#2B3428",
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
