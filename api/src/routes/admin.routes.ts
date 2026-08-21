@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAdmin } from "../middleware/require-admin";
 import { asyncHandler } from "../middleware/error-handler";
@@ -72,14 +73,20 @@ adminRouter.post(
       return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Dados inválidos" });
     }
 
+    const { attributes, ...rest } = parsed.data;
+
     const product = await prisma.product.create({
       data: {
-        ...parsed.data,
+        ...rest,
+        // `attributes` chega do Zod como Record<string, unknown> — o Prisma
+        // exige o tipo InputJsonValue para campos Json, então convertemos
+        // explicitamente aqui (undefined vira "campo não enviado").
+        attributes: attributes as Prisma.InputJsonValue | undefined,
         images: {
           create: (images ?? []).map((img: { url: string; order: number }) => ({ url: img.url, order: img.order })),
         },
         inventory: { create: { quantity: 0, minQuantity: 3 } },
-      },
+      } satisfies Prisma.ProductUncheckedCreateInput,
       include: { images: true },
     });
 
@@ -107,7 +114,14 @@ adminRouter.put(
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Dados inválidos" });
     }
-    const product = await prisma.product.update({ where: { id: req.params.id }, data: parsed.data });
+    const { attributes, ...rest } = parsed.data;
+    const product = await prisma.product.update({
+      where: { id: req.params.id },
+      data: {
+        ...rest,
+        attributes: attributes as Prisma.InputJsonValue | undefined,
+      } satisfies Prisma.ProductUncheckedUpdateInput,
+    });
     res.json(product);
   })
 );
