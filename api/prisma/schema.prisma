@@ -107,6 +107,8 @@ model Category {
 
   products    Product[]
 
+  couponScopes CouponCategory[]
+
   seoTitle       String?
   seoDescription String?
 
