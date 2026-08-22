@@ -12,7 +12,10 @@ import { errorHandler } from "./middleware/error-handler";
 
 const app = express();
 
-app.use(express.json({ limit: "5mb" }));
+// Limite maior que o padrão porque uploads de imagem (produtos/categorias)
+// chegam aqui como base64 dentro do JSON — um arquivo de ~7MB vira ~9-10MB
+// codificado em base64.
+app.use(express.json({ limit: "12mb" }));
 
 // CORS liberado para o domínio do front (web/). Em produção, apenas
 // leituras públicas e o webhook de pagamento são chamados diretamente

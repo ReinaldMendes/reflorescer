@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,30 +21,49 @@ const PRODUCT_KINDS = [
   { value: "OTHER", label: "Outro" },
 ];
 
-export function ProductForm({ categories }: { categories: Category[] }) {
+export interface ProductFormData {
+  id?: string;
+  name: string;
+  categoryId: string;
+  kind: string;
+  price: number | string;
+  compareAtPrice?: number | string | null;
+  shortDescription?: string | null;
+  description?: string | null;
+  featured: boolean;
+  attributes?: { ingredients?: string[]; howToUse?: string } | null;
+  images: UploadedImage[];
+}
+
+export function ProductForm({ categories, product }: { categories: Category[]; product?: ProductFormData }) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
-  const [kind, setKind] = useState("COSMETIC");
-  const [price, setPrice] = useState("");
-  const [compareAtPrice, setCompareAtPrice] = useState("");
-  const [shortDescription, setShortDescription] = useState("");
-  const [description, setDescription] = useState("");
-  const [ingredients, setIngredients] = useState("");
-  const [howToUse, setHowToUse] = useState("");
-  const [images, setImages] = useState<UploadedImage[]>([]);
-  const [featured, setFeatured] = useState(false);
+  const isEditing = !!product?.id;
+
+  const [name, setName] = useState(product?.name ?? "");
+  const [categoryId, setCategoryId] = useState(product?.categoryId ?? categories[0]?.id ?? "");
+  const [kind, setKind] = useState(product?.kind ?? "COSMETIC");
+  const [price, setPrice] = useState(product ? String(product.price) : "");
+  const [compareAtPrice, setCompareAtPrice] = useState(
+    product?.compareAtPrice != null ? String(product.compareAtPrice) : ""
+  );
+  const [shortDescription, setShortDescription] = useState(product?.shortDescription ?? "");
+  const [description, setDescription] = useState(product?.description ?? "");
+  const [ingredients, setIngredients] = useState(product?.attributes?.ingredients?.join(", ") ?? "");
+  const [howToUse, setHowToUse] = useState(product?.attributes?.howToUse ?? "");
+  const [images, setImages] = useState<UploadedImage[]>(product?.images ?? []);
+  const [featured, setFeatured] = useState(product?.featured ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");
 
     try {
-      const res = await fetch("/api/admin/produtos", {
-        method: "POST",
+      const url = isEditing ? `/api/admin/produtos/${product!.id}` : "/api/admin/produtos";
+      const res = await fetch(url, {
+        method: isEditing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
@@ -56,12 +75,15 @@ export function ProductForm({ categories }: { categories: Category[] }) {
           shortDescription,
           description,
           featured,
-          attributes: kind === "COSMETIC" ? { ingredients: ingredients.split(",").map((i) => i.trim()), howToUse } : {},
+          attributes: kind === "COSMETIC" ? { ingredients: ingredients.split(",").map((i) => i.trim()).filter(Boolean), howToUse } : {},
           images: images.map((img, i) => ({ url: img.url, order: i })),
         }),
       });
 
-      if (!res.ok) throw new Error("Não foi possível salvar o produto.");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Não foi possível salvar o produto.");
+      }
       router.push("/admin/produtos");
       router.refresh();
     } catch (err) {
@@ -106,7 +128,7 @@ export function ProductForm({ categories }: { categories: Category[] }) {
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-brand-800">Descrição curta</label>
         <textarea
-          value={shortDescription}
+          value={shortDescription ?? ""}
           onChange={(e) => setShortDescription(e.target.value)}
           maxLength={280}
           rows={2}
@@ -117,7 +139,7 @@ export function ProductForm({ categories }: { categories: Category[] }) {
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-brand-800">Descrição completa</label>
         <textarea
-          value={description}
+          value={description ?? ""}
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
           className="rounded-organic border border-brand-200 bg-white px-4 py-3"
@@ -147,7 +169,9 @@ export function ProductForm({ categories }: { categories: Category[] }) {
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar produto"}</Button>
+      <Button type="submit" disabled={saving}>
+        {saving ? "Salvando..." : isEditing ? "Salvar alterações" : "Salvar produto"}
+      </Button>
     </form>
   );
 }

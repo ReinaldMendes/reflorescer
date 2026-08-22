@@ -4,6 +4,8 @@ import { prisma } from "../lib/prisma";
 import { requireAdmin } from "../middleware/require-admin";
 import { asyncHandler } from "../middleware/error-handler";
 import { productSchema } from "../validations/product";
+import { categorySchema } from "../validations/category";
+import { cloudinary } from "../lib/cloudinary";
 
 export const adminRouter = Router();
 
@@ -115,12 +117,33 @@ adminRouter.put(
       return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Dados inválidos" });
     }
     const { attributes, ...rest } = parsed.data;
-    const product = await prisma.product.update({
-      where: { id: req.params.id },
-      data: {
-        ...rest,
-        attributes: attributes as Prisma.InputJsonValue | undefined,
-      } satisfies Prisma.ProductUncheckedUpdateInput,
+
+    // Sincroniza as imagens: a forma mais simples e segura de refletir
+    // reordenação/remoção/adição vindas do painel é substituir todo o
+    // conjunto (apaga as antigas e recria na nova ordem), em vez de tentar
+    // um diff campo a campo.
+    const product = await prisma.$transaction(async (tx) => {
+      if (Array.isArray(images)) {
+        await tx.productImage.deleteMany({ where: { productId: req.params.id } });
+        if (images.length > 0) {
+          await tx.productImage.createMany({
+            data: images.map((img: { url: string; order: number }) => ({
+              productId: req.params.id,
+              url: img.url,
+              order: img.order,
+            })),
+          });
+        }
+      }
+
+      return tx.product.update({
+        where: { id: req.params.id },
+        data: {
+          ...rest,
+          attributes: attributes as Prisma.InputJsonValue | undefined,
+        } satisfies Prisma.ProductUncheckedUpdateInput,
+        include: { images: { orderBy: { order: "asc" } } },
+      });
     });
     res.json(product);
   })
@@ -143,11 +166,41 @@ adminRouter.get(
   })
 );
 
+adminRouter.get(
+  "/categories/:id",
+  asyncHandler(async (req, res) => {
+    const category = await prisma.category.findUnique({ where: { id: req.params.id } });
+    if (!category) return res.status(404).json({ error: "Categoria não encontrada" });
+    res.json(category);
+  })
+);
+
 adminRouter.post(
   "/categories",
   asyncHandler(async (req, res) => {
-    const category = await prisma.category.create({ data: req.body });
+    const parsed = categorySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Dados inválidos" });
+    }
+    const category = await prisma.category.create({
+      data: parsed.data satisfies Prisma.CategoryUncheckedCreateInput,
+    });
     res.status(201).json(category);
+  })
+);
+
+adminRouter.put(
+  "/categories/:id",
+  asyncHandler(async (req, res) => {
+    const parsed = categorySchema.partial().safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Dados inválidos" });
+    }
+    const category = await prisma.category.update({
+      where: { id: req.params.id },
+      data: parsed.data satisfies Prisma.CategoryUncheckedUpdateInput,
+    });
+    res.json(category);
   })
 );
 
@@ -170,5 +223,27 @@ adminRouter.patch(
       prisma.orderStatusHistory.create({ data: { orderId: req.params.id, status, note } }),
     ]);
     res.json({ ok: true });
+  })
+);
+
+// --- Upload de imagens (Cloudinary) ---
+// Recebe a imagem como data URI base64 (`data:image/...;base64,...`) em vez
+// de multipart/form-data — evita depender de multer e casa com o BFF do
+// web/, que já converte o arquivo enviado pelo navegador para base64 antes
+// de repassar pra cá. `folder` separa produtos/categorias no Cloudinary.
+adminRouter.post(
+  "/upload",
+  asyncHandler(async (req, res) => {
+    const { file, folder } = req.body as { file?: string; folder?: string };
+    if (!file || !file.startsWith("data:")) {
+      return res.status(400).json({ error: "Nenhum arquivo de imagem válido enviado." });
+    }
+
+    const result = await cloudinary.uploader.upload(file, {
+      folder: `reflorescer/${folder ?? "geral"}`,
+      resource_type: "image",
+    });
+
+    res.status(201).json({ url: result.secure_url, publicId: result.public_id });
   })
 );
